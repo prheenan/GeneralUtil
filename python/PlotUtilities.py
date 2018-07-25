@@ -85,7 +85,7 @@ def label_axes(fig, labels=None, loc=None, add_bold=False,
     axes = axis_func(fig.axes)
     n_ax = len(axes)
     if loc is None:
-        loc = (-0.2, 0.95)
+        loc = (-0.15, 1.02)
     if (isinstance(loc,tuple)):
         loc = [loc for _ in range(n_ax)]
     for ax, lab,loc_tmp in zip(axes, labels,loc):
@@ -291,13 +291,16 @@ def errorbar(x,y,yerr,label,fmt=None,alpha=0.1,ecolor='r',markersize=3.0,
     
 def legend(fontsize=g_font_legend,loc=None,frameon=False,ncol=1,
            fontweight='bold',handlelength=1,handletextpad=1,
-           bbox_to_anchor=None,fancybox=False,**kwargs):
+           color=None,bbox_to_anchor=None,fancybox=False,**kwargs):
     if (loc is None):
         loc = 'best'
     prop = dict(size=fontsize,weight=fontweight,**kwargs)
     leg = plt.legend(loc=loc,frameon=frameon,prop=prop,ncol=ncol,
                      handlelength=handlelength,handletextpad=handletextpad,
                      fancybox=fancybox,bbox_to_anchor=bbox_to_anchor)
+    if (color is not None):
+        for t in leg.get_texts():
+            t.set_color(color)
     return leg
     
 
