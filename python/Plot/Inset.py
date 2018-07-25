@@ -34,6 +34,7 @@ def slice_by_x(x,y,xlim):
     ylim = [min(zoom_y),max(zoom_y)]
     return zoom_x,zoom_y,ylim
     
+    
 def zoomed_axis(ax=plt.gca(),xlim=[None,None],ylim=[None,None],
                 remove_ticks=True,zoom=1,borderpad=1,loc=4,**kw):
     """

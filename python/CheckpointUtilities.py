@@ -5,9 +5,12 @@ pipe_funcIdx = 1
 import GeneralUtil.python.GenUtilities as pGenUtil
 import numpy as np
 try:
-    import cPickle
+    import pickle as cPickle
+    kw_load = dict()
 except ImportError:
     import _pickle as cPickle
+    kw_load = dict(encoding='latin1')
+
 
 from scipy.sparse import csc_matrix
 
@@ -100,10 +103,12 @@ def loadFile(filePath,useNpy):
     else:
         # assume we pickle in binary
         with open(filePath, 'rb') as fh:
-            data = cPickle.load(fh)
+            data = cPickle.load(fh,**kw_load)
         return data
         
-
+def lazy_multi_load(cache_dir,load_func=None,**kw):
+    return multi_load(cache_dir,load_func=load_func,**kw)
+        
 def multi_load(cache_dir,load_func,force=False,limit=None,
                name_func=lambda i,o,*args,**kw: "{:d}".format(i)):
     """
@@ -138,8 +143,8 @@ def multi_load(cache_dir,load_func,force=False,limit=None,
         name = "{:s}{:s}.pkl".format(cache_dir,name_func(i,e))
         lazy_save(name,e)
         to_ret.append(e)        
-    return to_ret[:limit]    
-        
+    return to_ret 
+    
 def _checkpointGen(filePath,orCall,force,unpack,useNpy,*args,**kwargs):
     """
     this is a way of caching data, or reading the cached data out if it 

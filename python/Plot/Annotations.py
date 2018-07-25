@@ -74,6 +74,23 @@ def add_rectangle(ax,xlim,ylim,fudge_pct=0,facecolor="None",linestyle='-',
     ax.add_patch(r)  
     return r 
     
+def _rainbow_gen(x,y,strings,colors,ax=None,kw=[dict()]):
+    """
+    See: rainbow_text, except kw is an array now.
+    """
+    if ax is None:
+        ax = plt.gca()
+    t = ax.transData
+    canvas = ax.figure.canvas
+    # horizontal version
+    n_kw = len(kw)
+    for i,(s, c) in enumerate(zip(strings, colors)):
+        text = ax.text(x, y, s + " ", color=c, transform=t, 
+                       clip_on=False,**(kw[i % n_kw]))
+        text.draw(canvas.get_renderer())
+        ex = text.get_window_extent()
+        t = transforms.offset_copy(text._transform, x=ex.width, units='dots')  
+                        
 
 def rainbow_text(x, y, strings, colors, ax=None, **kw):
     """
@@ -91,14 +108,6 @@ def rainbow_text(x, y, strings, colors, ax=None, **kw):
         matplotlib.org/examples/text_labels_and_annotations/rainbow_text.html
           
     """
-    if ax is None:
-        ax = plt.gca()
-    t = ax.transData
-    canvas = ax.figure.canvas
+    return _rainbow_gen(x=x,y=y,strings=strings,colors=colors,ax=ax,kw=[kw])
 
-    # horizontal version
-    for s, c in zip(strings, colors):
-        text = ax.text(x, y, s + " ", color=c, transform=t, **kw)
-        text.draw(canvas.get_renderer())
-        ex = text.get_window_extent()
-        t = transforms.offset_copy(text._transform, x=ex.width, units='dots')    
+

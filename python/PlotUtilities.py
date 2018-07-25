@@ -12,6 +12,7 @@ import os
 from matplotlib.ticker import FixedLocator,NullLocator,AutoMinorLocator
 import matplotlib as mpl
 
+from matplotlib import ticker
 g_tom_text_rendering = dict(on=False)
 g_font_label = 8
 g_font_title = 9.5
@@ -44,11 +45,15 @@ from mpl_toolkits.axes_grid1.inset_locator import BboxPatch, BboxConnector,\
     BboxConnectorPatch
 from matplotlib.transforms import Bbox, TransformedBbox, \
     blended_transform_factory
+from matplotlib import ticker
 
 
 import string
 from itertools import cycle
 from six.moves import zip
+
+_uppercase = ["{:s}".format(s) for s in string.uppercase]
+_lowercase = ["{:s}".format(s) for s in string.lowercase]
 
 def upright_mu(unit=u""):
     """
@@ -79,7 +84,7 @@ def label_axes(fig, labels=None, loc=None, add_bold=False,
         Where to put the label in axes-fraction units
     """
     if labels is None:
-        labels = ["{:s}".format(s) for s in string.uppercase]
+        labels = _uppercase
     # re-use labels rather than stop labeling
     labels = cycle(labels)
     axes = axis_func(fig.axes)
@@ -259,7 +264,7 @@ def legend_and_save(Fig,Base,Number=0,ext=".png",**kwargs):
     return Number + 1
 
 def colorbar(label,labelpad=15,rotation=270,fontsize=g_font_legend,
-             fontsize_ticks=g_font_legend,fig=None,
+             fontsize_ticks=g_font_legend,fig=None,n_ticks=4,fontweight='bold',
              bar_kwargs=dict()):
     """
     Makes a simple color bar on the current plot, assuming that something
@@ -275,8 +280,12 @@ def colorbar(label,labelpad=15,rotation=270,fontsize=g_font_legend,
     else:
         color_module = fig
     cbar = color_module.colorbar(**bar_kwargs)
-    cbar.set_label(label,labelpad=labelpad,rotation=rotation,fontsize=fontsize)
+    cbar.set_label(label,labelpad=labelpad,rotation=rotation,fontsize=fontsize,
+                   fontweight='bold')
     cbar.ax.tick_params(labelsize=fontsize_ticks)
+    tick_locator = ticker.MaxNLocator(nbins=n_ticks)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
     return cbar
 
 def errorbar(x,y,yerr,label,fmt=None,alpha=0.1,ecolor='r',markersize=3.0,
@@ -291,16 +300,16 @@ def errorbar(x,y,yerr,label,fmt=None,alpha=0.1,ecolor='r',markersize=3.0,
     
 def legend(fontsize=g_font_legend,loc=None,frameon=False,ncol=1,
            fontweight='bold',handlelength=1,handletextpad=1,
-           color=None,bbox_to_anchor=None,fancybox=False,**kwargs):
+           bbox_to_anchor=None,fancybox=False,color='k',**kwargs):
     if (loc is None):
         loc = 'best'
     prop = dict(size=fontsize,weight=fontweight,**kwargs)
     leg = plt.legend(loc=loc,frameon=frameon,prop=prop,ncol=ncol,
                      handlelength=handlelength,handletextpad=handletextpad,
                      fancybox=fancybox,bbox_to_anchor=bbox_to_anchor)
-    if (color is not None):
-        for t in leg.get_texts():
-            t.set_color(color)
+    if (leg is not None):
+        for text in leg.get_texts():
+            plt.setp(text,color=color)
     return leg
     
 
@@ -369,7 +378,7 @@ def zlabel(lab,ax=None,**kwargs):
     if (ax is None):
         ax = plt.gca()
     return genLabel(ax.set_zlabel,lab,**kwargs)
-
+    
 def title(lab,fontsize=g_font_title,fontweight='bold',**kwargs):
     plt.title(lab,fontsize=fontsize,fontweight=fontweight,**kwargs)
 
@@ -407,7 +416,7 @@ def lazyLabel(xlab,ylab,titLab,yrotation=90,titley=1.0,bbox_to_anchor=None,
         zlabel(zlab,**axis_kwargs)
     if (useLegend):
         leg = legend(frameon=frameon,loc=loc,**legend_kwargs)
-        if (len(legend_kwargs.keys()) > 0):
+        if (leg is not None and len(legend_kwargs.keys()) > 0):
             set_legend_kwargs(**legend_kwargs)
 
 def set_legend_kwargs(ax=None,linewidth=0,background_color=None,
@@ -417,6 +426,8 @@ def set_legend_kwargs(ax=None,linewidth=0,background_color=None,
     if (background_color is None):
         background_color = 'w'
     leg = ax.get_legend()
+    if (leg is None):
+        return
     frame = leg.get_frame()
     setLegendBackground(leg,background_color)
     frame.set_linewidth(linewidth)
@@ -452,12 +463,12 @@ def axis_locator(ax,n_major,n_minor):
         ax.set_minor_locator(NullLocator())
     else:
         ax.set_major_locator(MaxNLocator(n_major))
-        # get the number of minor ticks per major ticks (for AutoMinor)
-        n_minor_per_major = int(np.round(n_minor/n_major))
-        ax.set_minor_locator(AutoMinorLocator(n_minor_per_major))
+        if (n_minor > 0):
+            # get the number of minor ticks per major ticks (for AutoMinor)
+            n_minor_per_major = int(np.round(n_minor/n_major))
+            ax.set_minor_locator(AutoMinorLocator(n_minor_per_major))
 
-
-def tom_ticks(ax=None,num_major=4,num_minor=None,**kwargs):
+def tom_ticks(ax=None,num_major=4,num_minor=0,**kwargs):
     """
     Convenience wrapper for tick_axis_number to make ticks like tom likes
 
@@ -475,6 +486,10 @@ def tom_ticks(ax=None,num_major=4,num_minor=None,**kwargs):
                      num_x_minor=num_minor,
                      num_y_major=num_major,
                      num_y_minor=num_minor,**kwargs)
+    if (num_minor == 0):                     
+        ax.tick_params(which='minor',right=False,left=False,top=False,
+                       bottom=False,axis='both')
+                    
     
 def tick_axis_number(ax=None,num_x_major=5,num_x_minor=None,num_y_major=5,
                      num_y_minor=None,change_x=True,change_y=True):
@@ -506,7 +521,7 @@ def tickAxisFont(fontsize=g_font_tick,
                  minor_tick_width=g_minor_tick_width,
                  minor_tick_length=g_minor_tick_length,direction='in',
                  ax=None,common_dict=None,axis='both',bottom=True,
-                 top=True,left=True,right=True,
+                 top=True,left=True,right=True,add_minor=False,
                  **kwargs):
     """
     sets the tick axis font and tick sizes
@@ -525,8 +540,9 @@ def tickAxisFont(fontsize=g_font_tick,
                        **kwargs)
     ax.tick_params(length=major_tick_length, width=major_tick_width,
                    labelsize=fontsize,which='major',**common_dict)
-    ax.tick_params(length=minor_tick_length, width=minor_tick_width,
-                   which='minor',**common_dict)
+    if (add_minor):                   
+        ax.tick_params(length=minor_tick_length, width=minor_tick_width,
+                       which='minor',**common_dict)
     if (hasattr(ax, 'zaxis') and ax.zaxis is not None):
         ax.zaxis.set_tick_params(width=g_tick_thickness,length=g_tick_length)
 
@@ -660,7 +676,7 @@ def pm(stdOrMinMax,mean=None,fmt=".3g"):
     return ("{:"+ fmt + "}+/-{:.2g}").format(mean,delta)
 
 def savefig(figure,fileName,close=True,tight=True,subplots_adjust=None,
-            **kwargs):
+            bbox_inches='tight',pad=1,pad_inches=0.02,**kwargs):
     """
     Saves the given figure with the options and filenames
     
@@ -675,22 +691,26 @@ def savefig(figure,fileName,close=True,tight=True,subplots_adjust=None,
         nothing
     """
     if (tight):
-        plt.tight_layout(True)
+        plt.tight_layout(pad=pad)
     if (subplots_adjust is not None):
         plt.subplots_adjust(**subplots_adjust)
     baseName = util.getFileFromPath(fileName)
     if ("." not in baseName):
-        formatStr = ".svg"
+        formatStr = ".jpeg"
         fullName = fileName + formatStr
     else:
         _,formatStr = os.path.splitext(fileName)
         fullName = fileName
-    figure.savefig(fullName,format=formatStr[1:], 
-                   dpi=figure.get_dpi(),**kwargs)
+    """
+    for rationale, see (Stack overflow):
+    questions/11837979/removing-white-space-around-a-saved-image-in-matplotlib
+    """
+    figure.savefig(fullName,format=formatStr[1:],pad_inches=pad_inches,
+                   dpi=figure.get_dpi(),bbox_inches=bbox_inches,**kwargs)
     if (close):
         plt.close(figure)
 
-def figure(figsize=None,xSize=3.5,ySize=3.5,dpi=400):
+def figure(figsize=None,xSize=3.5,ySize=3.5,dpi=600,**kw):
     """
     wrapper for figure, allowing easier setting I think
 
@@ -705,7 +725,7 @@ def figure(figsize=None,xSize=3.5,ySize=3.5,dpi=400):
     if (figsize is not None):
         xSize = figsize[0]
         ySize = figsize[1]
-    return  plt.figure(figsize=(xSize,ySize),dpi=dpi)
+    return  plt.figure(figsize=(xSize,ySize),dpi=dpi,**kw)
 
 def getNStr(n,space = " "):
     return space + "n={:d}".format(n)
@@ -788,19 +808,34 @@ def tom_text_rendering():
     # we need latex and unicode to be safe
     mpl.rc('text', usetex=True)
     mpl.rcParams['text.latex.unicode'] =True
-    mpl.rcParams['font.family'] = 'sans'
+    """
+    make the normal font Helvetica :
+    stackoverflow.com/questions/11367736/matplotlib-consistent-font-using-latex  
+    """
+    mpl.rcParams['font.family'] = 'sans-serif'
+    mpl.rcParams['font.sans-serif'] = ['Helvetica']    
     mpl.rcParams['font.style'] = 'normal'
     # bm: bold/italic math. 
     # bfdefault: all fonts are assumed bold by default
     # sfdefault: all non-math are sans-serif
-    preamble = [r"\renewcommand{\seriesdefault}{\bfdefault}",
-                r"\usepackage{amsmath}",
-                r"\usepackage{helvet}",
-                r"\renewcommand{\familydefault}{\sfdefault}"]
-    mpl.rcParams['text.latex.preamble']=preamble
-    # Use arial, as per usual 
+    # see :https://stackoverflow.com/questions/2537868/sans-serif-math-with-latex-in-matplotlib
+    preamble = [
+       r'\usepackage{siunitx}',   # i need upright \micro symbols, but you need...
+       r'\sisetup{detect-all}',   # ...this to force siunitx to actually use your fonts
+       r'\usepackage{helvet}',    # set the normal font here
+       r'\usepackage{sansmath}',  # load up the sansmath so that math -> helvet
+       r'\sansmath',              # <- tricky! -- gotta actually tell tex to use!
+       r'\usepackage{amsmath}',    # use this for bold symbols 
+       r'\usepackage{sfmath}',
+       r'\usepackage{relsize}',
+       ]
+    mpl.rcParams['text.latex.preamble']= preamble
+    mathtext_format = "serif:italic:bold"
+    mpl.rcParams['mathtext.it'] = mathtext_format
+    mpl.rcParams['mathtext.bf'] = mathtext_format
+    mpl.rcParams['mathtext.rm'] = mathtext_format
+    # see: https://stackoverflow.com/questions/32725483/matplotllib-and-xelatex
     mpl.rcParams['mathtext.fallback_to_cm'] = False
-    mpl.rcParams['mathtext.default'] = 'sf'
 
 def bf_italic(s):
     """
@@ -842,7 +877,15 @@ def save_png_and_svg(fig,base,**kwargs):
     """
     save_twice(fig,base +".png",base+".svg",**kwargs)
     
-
+def save_tom(fig,base,**kwargs):
+    """
+    Saves however tom would like me to 
+    
+    2017-10-12: he wants jpeg.
+    """
+    savefig(fig,base + ".tiff",close=False,**kwargs)   
+    save_twice(fig,base +".jpeg",base+".svg",**kwargs)
+    
 # legacy API. plan is now to mimic matplotlib 
 def colorCyc(num,cmap = plt.cm.winter):
     cmap(num,cmap)
